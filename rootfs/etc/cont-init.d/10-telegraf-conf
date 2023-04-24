@@ -1,0 +1,34 @@
+#!/usr/bin/with-contenv bash
+# shellcheck shell=bash disable=SC1091,SC2153
+
+source /scripts/common
+
+TELEGRAF_OUTPUT_FILE="/etc/telegraf/telegraf.d/output.conf"
+
+# start with a fresh config
+rm "$TELEGRAF_OUTPUT_FILE" > /dev/null 2>&1 || true
+
+# configure InfluxDB v2 if a URL is given
+if [[ -n "$INFLUXDBV2_URL" ]]; then
+    {
+        echo "[[outputs.influxdb_v2]]"
+        echo "  urls = [\"$INFLUXDBV2_URL\"]"
+        echo "  token = \"$INFLUXDBV2_TOKEN\""
+        echo "  organization = \"$INFLUXDBV2_ORG\""
+        echo "  bucket = \"$INFLUXDBV2_BUCKET\""
+        echo ""
+    } >> "$TELEGRAF_OUTPUT_FILE"
+fi
+
+# configure Prometheus if required
+if chk_enabled "${PROMETHEUS_ENABLE}"; then
+    {
+        echo "[[outputs.prometheus_client]]"
+        echo "  listen = \":9273\""
+        echo ""
+    }  >> "$TELEGRAF_OUTPUT_FILE"
+fi
+
+for FILE in /etc/telegraf/telegraf.d/*; do
+    sed -i -e "s#TAR1090_URL#${TAR1090_URL}#g" "${FILE}"
+done
